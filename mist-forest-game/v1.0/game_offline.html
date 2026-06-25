@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>心灵之旅-幻雾森林</title>
+    <style>
+        /* CSS Reset & Base Styles */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html {
+            overflow: hidden; /* 彻底禁用根滚动条，所有滚动由内部容器接管 */
+        }
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #064e3b 100%);
+            color: #e5e7eb;
+            font-family: "Noto Serif SC", "Songti SC", serif;
+            overflow: hidden;
+            height: 100vh;
+            position: relative;
+        }
+        button { cursor: pointer; border: none; outline: none; font-family: inherit; }
+        
+        /* Canvas 粒子背景 */
+        #bg-canvas {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 0; pointer-events: none;
+        }
+
+        /* Utility Classes */
+        .w-full { width: 100%; }
+        .h-screen { height: 100vh; }
+        .flex { display: flex; }
+        .flex-col { flex-direction: column; }
+        .items-center { align-items: center; }
+        .justify-center { justify-content: center; }
+        .relative { position: relative; }
+        .z-10 { z-index: 10; }
+        .text-center { text-align: center; }
+        
+        /* Animations */
+        @keyframes fade-in { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fade-in 0.8s ease-out forwards; }
+        
+        @keyframes blink { 50% { opacity: 0; } }
+        .blink { animation: blink 1s infinite; }
+        
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .spin { animation: spin 1.5s linear infinite; }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        .float-anim { animation: float 6s ease-in-out infinite; }
+
+        /* Typography & Colors */
+        .title { 
+            font-size: 2.5rem; color: #fff; letter-spacing: 4px; margin-bottom: 3rem; 
+            text-shadow: 0 0 20px rgba(167, 139, 250, 0.6);
+            line-height: 1.4;
+        }
+        @media (min-width: 768px) { .title { font-size: 3.5rem; } }
+        .subtitle { font-family: "Noto Sans SC", sans-serif; color: #34d399; font-size: 0.9rem; letter-spacing: 0.3em; margin-bottom: 1rem; text-shadow: 0 0 10px rgba(52, 211, 153, 0.4); }
+        
+        /* Components */
+        .btn-primary {
+            padding: 0.8rem 2.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(167, 139, 250, 0.5);
+            color: #e5e7eb;
+            font-size: 1.125rem;
+            letter-spacing: 2px;
+            border-radius: 50px;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .btn-primary:hover { background: rgba(167, 139, 250, 0.2); box-shadow: 0 0 25px rgba(167, 139, 250, 0.5); transform: scale(1.05); }
+        .dot { width: 8px; height: 8px; background-color: #a78bfa; border-radius: 50%; display: inline-block; animation: blink 2s infinite; box-shadow: 0 0 10px #a78bfa; }
+
+        .btn-text {
+            background: transparent;
+            color: #94a3b8;
+            font-size: 0.875rem;
+            letter-spacing: 1px;
+            margin-top: 1.5rem;
+            text-decoration: underline;
+            transition: color 0.3s;
+        }
+        .btn-text:hover { color: #fff; }
+
+        .container { 
+            max-width: 650px; margin: 0 auto; padding: 3rem 1.5rem; 
+            min-height: 100vh; display: flex; flex-direction: column; 
+        }
+        
+        .progress-bar-bg { width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 4px; margin-bottom: 2rem; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #34d399, #a78bfa); transition: width 0.5s ease; box-shadow: 0 0 10px #a78bfa; }
+        
+        .chapter-tag { font-family: "Noto Sans SC", sans-serif; font-size: 0.8rem; color: #94a3b8; letter-spacing: 0.2em; text-align: center; margin-bottom: 2rem; }
+        
+        .question-text { 
+            font-size: 1.25rem; line-height: 1.8; color: #f3f4f6; 
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            margin-bottom: 2.5rem; 
+        }
+        
+        .options-container { display: flex; flex-direction: column; gap: 1.2rem; margin-bottom: 2rem; }
+        .option-btn {
+            text-align: left;
+            padding: 1.2rem 1.5rem;
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 12px;
+            color: #cbd5e1;
+            font-size: 1rem;
+            line-height: 1.6;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .option-btn:hover { 
+            border-color: rgba(167, 139, 250, 0.6); 
+            background: rgba(167, 139, 250, 0.1); 
+            color: #fff;
+            transform: translateY(-3px); 
+            box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+        }
+
+        /* Result Card 优化 */
+        .result-container { padding: 3rem 1rem; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        .result-card {
+            width: 100%;
+            max-width: 420px;
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(167, 139, 250, 0.3);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            margin-bottom: 2rem;
+            position: relative;
+        }
+        .card-header {
+            padding: 3rem 1.5rem 2rem;
+            text-align: center;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+            background: radial-gradient(ellipse at top, rgba(167, 139, 250, 0.25), transparent);
+        }
+        .card-tag { font-family: "Noto Sans SC", sans-serif; font-size: 0.8rem; color: #cbd5e1; letter-spacing: 0.2em; margin-bottom: 1rem; }
+        .card-title { font-size: 2rem; color: #fff; letter-spacing: 2px; margin-bottom: 0.8rem; text-shadow: 0 0 15px rgba(167,139,250,0.5); }
+        .card-subtitle { color: #34d399; font-size: 0.9rem; font-style: italic; }
+        
+        .card-body { padding: 2rem; }
+        
+        .analysis-section { margin-bottom: 2rem; }
+        .analysis-title { font-family: "Noto Sans SC", sans-serif; font-size: 0.9rem; color: #94a3b8; letter-spacing: 0.1em; margin-bottom: 1.2rem; border-left: 3px solid #a78bfa; padding-left: 0.6rem; }
+        
+        .stress-bar-item { margin-bottom: 1.2rem; }
+        .stress-bar-header { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.4rem; color: #cbd5e1; }
+        .stress-bar-name { font-weight: bold; color: #e2e8f0; }
+        .stress-bar-track { width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; }
+        .stress-bar-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #8b5cf6, #d946ef); }
+        .stress-desc { font-size: 0.75rem; color: #94a3b8; margin-top: 0.3rem; }
+        
+        .card-desc { font-size: 0.95rem; line-height: 1.8; color: #e2e8f0; text-align: justify; padding: 1rem; background: rgba(255,255,255,0.03); border-radius: 12px; }
+        .card-footer { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid rgba(148, 163, 184, 0.1); display: flex; justify-content: space-between; font-size: 0.75rem; color: #64748b; }
+        
+        .btn-group { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
+        .btn-secondary { padding: 0.8rem 2rem; background: rgba(255,255,255,0.05); border: 1px solid #475569; color: #cbd5e1; border-radius: 50px; font-size: 0.9rem; transition: all 0.3s; }
+        .btn-secondary:hover { color: #fff; border-color: #94a3b8; background: rgba(255,255,255,0.1); }
+        .btn-action { padding: 0.8rem 2rem; background: rgba(139, 92, 246, 0.3); border: 1px solid #8b5cf6; color: #fff; border-radius: 50px; font-size: 0.9rem; transition: all 0.3s; box-shadow: 0 4px 15px rgba(139,92,246,0.3); }
+        .btn-action:hover { background: rgba(139, 92, 246, 0.5); transform: translateY(-2px); }
+
+        .loader { width: 50px; height: 50px; border-radius: 50%; border-top: 3px solid #a78bfa; border-right: 3px solid transparent; margin-bottom: 2rem; }
+
+        /* History Modal */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 50; display: flex; justify-content: center; align-items: center; }
+        .modal-content { background: #1e293b; border: 1px solid #475569; border-radius: 16px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; padding: 2rem; }
+        .history-title { font-size: 1.5rem; color: #fff; margin-bottom: 1.5rem; text-align: center; font-family: "Noto Serif SC", serif; border-bottom: 1px solid #334155; padding-bottom: 1rem; }
+        .history-item { padding: 1rem; background: rgba(255,255,255,0.05); border-radius: 8px; margin-bottom: 1rem; border-left: 3px solid #a78bfa; }
+        .history-item-date { font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.5rem; font-family: sans-serif; }
+        .history-item-title { font-size: 1.125rem; color: #e2e8f0; font-weight: bold; margin-bottom: 0.5rem; }
+        .history-item-stress { font-size: 0.875rem; color: #34d399; }
+        .close-btn { width: 100%; padding: 0.8rem; margin-top: 1rem; background: #334155; color: #fff; border-radius: 8px; transition: background 0.3s; }
+        .close-btn:hover { background: #475569; }
+        .empty-history { text-align: center; color: #64748b; padding: 2rem 0; font-family: sans-serif; }
+    </style>
+</head>
+<body>
+    <div id="welcome-bg-layer" class="welcome-bg"></div>
+    <canvas id="bg-canvas"></canvas>
+    <div id="app" class="relative z-10"></div>
+
+    <script>
+        function initCanvas() {
+            const canvas = document.getElementById('bg-canvas');
+            const ctx = canvas.getContext('2d');
+            let w = canvas.width = window.innerWidth;
+            let h = canvas.height = window.innerHeight;
+            
+            const particles = [];
+            for (let i = 0; i < 40; i++) {
+                particles.push({
+                    x: Math.random() * w,
+                    y: Math.random() * h,
+                    r: Math.random() * 2.5 + 0.5,
+                    dx: (Math.random() - 0.5) * 0.5,
+                    dy: (Math.random() - 0.5) * 0.5,
+                    alpha: Math.random() * 0.6 + 0.1,
+                    color: Math.random() > 0.5 ? '167, 139, 250' : '52, 211, 153'
+                });
+            }
+
+            function animate() {
+                ctx.clearRect(0, 0, w, h);
+                particles.forEach(p => {
+                    p.x += p.dx;
+                    p.y += p.dy;
+                    if (p.x < 0 || p.x > w) p.dx *= -1;
+                    if (p.y < 0 || p.y > h) p.dy *= -1;
+                    
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(${p.color}, ${p.alpha})`;
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = `rgba(${p.color}, ${p.alpha})`;
+                    ctx.fill();
+                });
+                requestAnimationFrame(animate);
+            }
+            animate();
+
+            window.addEventListener('resize', () => {
+                w = canvas.width = window.innerWidth;
+                h = canvas.height = window.innerHeight;
+            });
+        }
+        initCanvas();
+
+        const questionsData = [
+  {
+    "id": "q1",
+    "chapter": "第一章：迷雾边缘",
+    "question": "你站在幽暗的魔法森林入口，传说这里能倒映出人心的深渊。此时起了大雾，一棵古树的树枝上挂着三件无主之物，你决定带上哪一件？",
+    "options": [
+      { "text": "一把生锈但依然锋利的铁剑。", "scores": { "E": 2, "C": 1 } },
+      { "text": "一盏散发着微弱蓝光的提灯。", "scores": { "O": 2, "StressLevel": -1 } },
+      { "text": "一张画满复杂符文的陈旧卷轴。", "scores": { "N": 2, "O": 1 } }
+    ]
+  },
+  {
+    "id": "q2",
+    "chapter": "第一章：迷雾边缘",
+    "question": "踏入森林不久，浓雾就彻底切断了退路。四周静得连落叶的声音都异常清晰。你觉得这片突如其来的浓雾，它的本质是什么？",
+    "options": [
+      { "text": "森林中常见的自然气候变化，总有散去的时候。", "scores": { "N": -2, "O": -1 } },
+      { "text": "某种栖息在林中的生物为了隐藏行踪而释放的障眼法。", "scores": { "StressSocial": 2, "N": 1 } },
+      { "text": "森林本身感知到了外来者，从而产生的某种防御机制。", "scores": { "StressSelf": 2, "O": 1 } }
+    ]
+  },
+  {
+    "id": "q3",
+    "chapter": "第一章：迷雾边缘",
+    "question": "一条清澈的小溪拦住了去路。水底铺满了闪闪发光的金币，但水面上漂浮着一层淡淡的紫雾。面对这条小溪，你会选择怎么做？",
+    "options": [
+      { "text": "找一根树枝试探水深，尽量避开紫雾，涉水走到对岸。", "scores": { "C": 2, "StressLevel": -1 } },
+      { "text": "留意到水底的金币可能在后续有用，尝试捞取一些后再过河。", "scores": { "StressSurvival": 3 } },
+      { "text": "认为水域情况不明，宁愿沿着溪流走一段寻找其他过河点。", "scores": { "N": 2, "C": 1 } }
+    ]
+  },
+  {
+    "id": "q4",
+    "chapter": "第一章：迷雾边缘",
+    "question": "在前进时，你听到远处的灌木丛里传来微弱的求救声，声音听起来很像你现实中认识的一个熟人。你会作何反应？",
+    "options": [
+      { "text": "朝着声音传来的方向走去，看看发生了什么情况。", "scores": { "A": 3, "E": 1 } },
+      { "text": "停在原地保持安静，等待求救声消失或确认情况后再行动。", "scores": { "C": 1, "A": -2 } },
+      { "text": "认为这只是森林制造的幻象，选择换一个方向离开。", "scores": { "StressSocial": 3, "N": 1 } }
+    ]
+  },
+  {
+    "id": "q5",
+    "chapter": "第一章：迷雾边缘",
+    "question": "天色突然暗了下来，四周的树木仿佛向你靠拢，交织的树枝让周围的空间变得非常狭窄。此时，你希望手里出现什么物品？",
+    "options": [
+      { "text": "一把可以点燃周围枯枝的火炬。", "scores": { "E": 2, "StressLevel": 1 } },
+      { "text": "一件可以完美融入周围环境的隐形斗篷。", "scores": { "StressSocial": 2, "StressSelf": 1 } },
+      { "text": "一扇只要推开就能回到熟悉房间的木门。", "scores": { "StressLevel": 3 } }
+    ]
+  },
+  {
+    "id": "q6",
+    "chapter": "第二章：幻影之森",
+    "question": "空间恢复正常后，你发现树干上长出了一些发光的蘑菇。一本掉落在地的残卷记录着它有某种奇效。你觉得它最可能的作用是？",
+    "options": [
+      { "text": "能在短时间内提升体力，让人不知疲倦。", "scores": { "StressSurvival": 2, "C": 1 } },
+      { "text": "能让人听懂森林中其他生物的语言。", "scores": { "O": 2, "A": 1 } },
+      { "text": "能让人看到过去的记忆或未来的碎片。", "scores": { "StressSelf": 2, "N": 1 } }
+    ]
+  },
+  {
+    "id": "q7",
+    "chapter": "第二章：幻影之森",
+    "question": "一只毛发斑驳、体型像狼的生物拦住了你。它没有攻击的意图，只是定定地看着你，嘴里叼着一块带血的破布。你认为它想传达什么？",
+    "options": [
+      { "text": "它在警告我前方有危险，让我不要靠近。", "scores": { "N": 2, "C": 1 } },
+      { "text": "它在展示它的战利品，试图确立领地的主导权。", "scores": { "StressSocial": 2, "E": -1 } },
+      { "text": "它遇到了麻烦，希望我能跟着它去帮忙。", "scores": { "A": 2, "O": 1 } }
+    ]
+  },
+  {
+    "id": "q8",
+    "chapter": "第二章：幻影之森",
+    "question": "你在林中发现了一个废弃的营地。营地中间有一口还在沸腾的铁锅，旁边散落着一些行李。观察营地后，你最关注的细节是？",
+    "options": [
+      { "text": "散落的行李里是否有能用得上的工具或干粮。", "scores": { "StressSurvival": 2, "C": 1 } },
+      { "text": "铁锅里煮的是什么，为什么营地主人会匆忙离开。", "scores": { "O": 2, "N": 1 } },
+      { "text": "营地周围是否有打斗的痕迹或奇怪的脚印。", "scores": { "C": 2, "N": 1 } }
+    ]
+  },
+  {
+    "id": "q9",
+    "chapter": "第二章：幻影之森",
+    "question": "营地深处的一棵树上刻着一行模糊的字迹。你凑近辨认，觉得这行字的内容大概是：",
+    "options": [
+      { "text": "记录了前往某个安全庇护所的路线标记。", "scores": { "StressSurvival": 2, "O": -1 } },
+      { "text": "留下这句话的人对他同伴的抱怨或控诉。", "scores": { "StressSocial": 2, "N": 1 } },
+      { "text": "一句没头没尾的、关于自身命运的感叹。", "scores": { "StressSelf": 2, "O": 1 } }
+    ]
+  },
+  {
+    "id": "q10",
+    "chapter": "第二章：幻影之森",
+    "question": "夜幕彻底降临，森林里升起了一种带有甜味的荧光孢子。吸入孢子后，你感到一阵强烈的困意。你会怎么做？",
+    "options": [
+      { "text": "立刻用布捂住口鼻，强打精神继续赶路离开这片区域。", "scores": { "C": 3, "StressLevel": 1 } },
+      { "text": "找一个相对安全的树洞或高处，顺着困意睡一觉。", "scores": { "StressLevel": -2, "O": -1 } },
+      { "text": "试图收集一些孢子，看看能否在后面作为防身道具使用。", "scores": { "O": 2, "E": 1 } }
+    ]
+  },
+  {
+    "id": "q11",
+    "chapter": "第二章：幻影之森",
+    "question": "在孢子的影响下，你做了一个短暂的梦。梦中你回到了现实世界，但有些事情不一样了。这个不同的地方是：",
+    "options": [
+      { "text": "你获得了一笔可以自由支配的巨额财富。", "scores": { "StressSurvival": 3 } },
+      { "text": "所有以前与你有矛盾的人，都对你表现出极大的善意。", "scores": { "StressSocial": 3 } },
+      { "text": "你成为了一个完全没有缺点的、理想中的自己。", "scores": { "StressSelf": 3 } }
+    ]
+  },
+  {
+    "id": "q12",
+    "chapter": "第二章：幻影之森",
+    "question": "醒来后，你发现原本在你身边的某件重要随身物品不见了。面对物品的丢失，你的第一反应是：",
+    "options": [
+      { "text": "仔细回忆睡前物品放置的位置，在营地周围进行地毯式搜索。", "scores": { "C": 2, "N": -1 } },
+      { "text": "认为是被森林里的其他生物偷走了，心中升起警惕和恼怒。", "scores": { "StressSocial": 2, "N": 2 } },
+      { "text": "觉得这是森林索要的“过路费”，收拾剩下的东西继续前进。", "scores": { "O": 2, "C": -1 } }
+    ]
+  },
+  {
+    "id": "q13",
+    "chapter": "第三章：深渊回响",
+    "question": "你来到了一处断崖边。悬崖深不见底，唯一通向对面的是一座随风摇晃的旧吊桥，木板看起来腐朽不堪。你的决定是：",
+    "options": [
+      { "text": "检查桥头的绳索是否牢固，踩稳每一步快速通过。", "scores": { "E": 2, "C": 2 } },
+      { "text": "觉得风险太大，沿着悬崖边缘寻找是否有其他更安全的通道。", "scores": { "N": 2, "C": 1 } },
+      { "text": "向深渊底部扔下一块石头，听听回音，评估下方的情况后再做打算。", "scores": { "O": 2, "E": -1 } }
+    ]
+  },
+  {
+    "id": "q14",
+    "chapter": "第三章：深渊回响",
+    "question": "当你走在吊桥中间时，深渊下方突然传来一阵奇异的呼唤声，这声音似乎在念着你的名字。你认为这声音是：",
+    "options": [
+      { "text": "风穿过峡谷时产生的声学错觉。", "scores": { "O": -1, "N": -2 } },
+      { "text": "深渊中的怪物试图诱惑旅人坠落的陷阱。", "scores": { "N": 2, "StressLevel": 1 } },
+      { "text": "你内心深处被压抑的某种情绪的具象化反映。", "scores": { "StressSelf": 2, "O": 2 } }
+    ]
+  },
+  {
+    "id": "q15",
+    "chapter": "第三章：深渊回响",
+    "question": "伴随着呼唤声，吊桥开始剧烈晃动，一块木板在你脚下断裂。在你险些踩空的瞬间，脑海中闪过的画面是：",
+    "options": [
+      { "text": "现实中一项尚未完成的、极其重要的工作或任务。", "scores": { "StressSurvival": 2, "C": 2 } },
+      { "text": "一个对你很重要的人，以及你们之间未解的遗憾。", "scores": { "StressSocial": 2, "A": 2 } },
+      { "text": "一片空白，只有单纯的求生本能和对坠落的恐惧。", "scores": { "StressLevel": 2, "N": 2 } }
+    ]
+  },
+  {
+    "id": "q16",
+    "chapter": "第三章：深渊回响",
+    "question": "有惊无险地到达对岸后，你发现地上有一面布满裂纹的全身镜。镜子里倒映出的你，呈现出一种怎样的状态？",
+    "options": [
+      { "text": "穿着华丽的铠甲，但眼神疲惫，周围堆满了成堆的文件或金币。", "scores": { "StressSurvival": 3 } },
+      { "text": "被无数根看不见的线牵扯着，肢体动作显得有些僵硬和不自然。", "scores": { "StressSocial": 3 } },
+      { "text": "周围没有任何事物，只有你自己站在一片虚无中，表情迷茫。", "scores": { "StressSelf": 3 } }
+    ]
+  },
+  {
+    "id": "q17",
+    "chapter": "第三章：深渊回响",
+    "question": "镜子突然发出声音：“留下一样东西，我就为你指明出林的捷径。”你会选择交出什么？",
+    "options": [
+      { "text": "你身上仅存的一半食物和水源。", "scores": { "O": 2, "StressSurvival": -1 } },
+      { "text": "一段关于你过去某个痛苦经历的记忆。", "scores": { "StressSelf": 2, "N": -2 } },
+      { "text": "拒绝这个交易，转身依靠自己的判断继续寻找出路。", "scores": { "C": 2, "E": 2 } }
+    ]
+  },
+  {
+    "id": "q18",
+    "chapter": "第三章：深渊回响",
+    "question": "离开镜子后，天空下起了黑色的雨。雨滴落在皮肤上不会感到湿润，却会让人回想起最近一次感到沮丧的瞬间。那是：",
+    "options": [
+      { "text": "付出了很多努力，却没有得到应有回报或认可的时候。", "scores": { "StressSurvival": 2, "N": 1 } },
+      { "text": "在人群中感到格格不入，或者为了迎合他人而勉强自己的时候。", "scores": { "StressSocial": 2, "A": -1 } },
+      { "text": "发现自己无法达到设定的目标，对自己感到失望的时候。", "scores": { "StressSelf": 2, "C": 2 } }
+    ]
+  },
+  {
+    "id": "q19",
+    "chapter": "第四章：遗迹的抉择",
+    "question": "雨停后，你走进了一座古老的石头遗迹。遗迹大厅中央有一个被石柱压住的游侠。游侠看到你，向你伸出了手。你会：",
+    "options": [
+      { "text": "立刻上前尝试搬开石柱，或者寻找杠杆工具救他出来。", "scores": { "A": 3, "E": 2 } },
+      { "text": "保持一段距离询问他的身份，了解这里发生了什么再决定是否施救。", "scores": { "C": 2, "N": 2 } },
+      { "text": "观察四周是否有其他陷阱，确认自身安全为最优先。", "scores": { "StressLevel": 1, "C": 2 } }
+    ]
+  },
+  {
+    "id": "q20",
+    "chapter": "第四章：遗迹的抉择",
+    "question": "如果石柱实在太重，无法凭借一个人的力量搬开，你会对游侠说什么？",
+    "options": [
+      { "text": "“我会去找其他人来帮忙，你坚持住。”", "scores": { "A": 2, "O": 1 } },
+      { "text": "“把你的重要物品交给我，我会帮你送到目的地。”", "scores": { "C": 2, "E": 2 } },
+      { "text": "“很抱歉，我无能为力。”然后安静地离开。", "scores": { "StressSocial": 2, "A": -2 } }
+    ]
+  },
+  {
+    "id": "q21",
+    "chapter": "第四章：遗迹的抉择",
+    "question": "在遗迹的深处，你发现了三个被封印的石箱，只能打开其中一个。箱子表面雕刻着不同的图案，你会选择：",
+    "options": [
+      { "text": "雕刻着稻穗与钱币的箱子，象征着丰收与财富。", "scores": { "StressSurvival": 2 } },
+      { "text": "雕刻着握手与人群的箱子，象征着联盟与羁绊。", "scores": { "StressSocial": 2 } },
+      { "text": "雕刻着眼睛与星辰的箱子，象征着智慧与真理。", "scores": { "StressSelf": 2 } }
+    ]
+  },
+  {
+    "id": "q22",
+    "chapter": "第四章：遗迹的抉择",
+    "question": "打开箱子后，里面飞出了一只光影组成的蝴蝶。它围绕着你飞舞了一圈，停在了你的：",
+    "options": [
+      { "text": "手背上，仿佛随时准备带领你起飞。", "scores": { "E": 2, "O": 2 } },
+      { "text": "肩膀上，安静地陪伴着你。", "scores": { "A": 2, "E": -1 } },
+      { "text": "心口前，散发着让人感到温暖的光芒。", "scores": { "StressLevel": -2, "N": -2 } }
+    ]
+  },
+  {
+    "id": "q23",
+    "chapter": "第四章：遗迹的抉择",
+    "question": "遗迹的出口处有一尊守护神像。神像要求你回答一个问题：“在漫长的旅途中，你最害怕失去什么？”",
+    "options": [
+      { "text": "前进的方向和掌控局面的能力。", "scores": { "StressSurvival": 2, "C": 2 } },
+      { "text": "同行者的信任和被理解的可能。", "scores": { "StressSocial": 2, "A": 2 } },
+      { "text": "真实的自我和内心的平静。", "scores": { "StressSelf": 2, "N": 2 } }
+    ]
+  },
+  {
+    "id": "q24",
+    "chapter": "第四章：遗迹的抉择",
+    "question": "神像听完你的回答后，为你让开了道路，并赠予你一句预言。你觉得这句预言的内容是关于：",
+    "options": [
+      { "text": "你即将面临的一个具体挑战及应对方法。", "scores": { "C": 2, "O": -1 } },
+      { "text": "你未来会遇到的一些重要人物。", "scores": { "A": 2, "E": 2 } },
+      { "text": "一段模糊的、需要你自己去体悟的箴言。", "scores": { "O": 2, "N": 2 } }
+    ]
+  },
+  {
+    "id": "q25",
+    "chapter": "最终章：泉水之镜",
+    "question": "你终于走出了魔法森林。在出口处，有一片发光的泉水。你俯身看向水面，水面倒映出的你，此刻是怎样的状态？（这一题将决定你最终的角色卡片）",
+    "options": [
+      { "text": "虽然身上满是泥泞与伤痕，但眼神坚毅，手中紧紧握着武器。", "scores": { "E": 3, "StressSurvival": 2 } },
+      { "text": "身上的装束发生了改变，多了一些充满神秘气息的饰品，神情平静。", "scores": { "O": 3, "StressSelf": 2 } },
+      { "text": "水面上除了你，还倒映出了几个模糊但温暖的身影站在你身后。", "scores": { "A": 3, "StressSocial": 2 } }
+    ]
+  }
+];
+
+        let state = {
+            step: 'welcome', // welcome, story, loading, result
+            qIndex: 0,
+            scores: { O: 0, C: 0, E: 0, A: 0, N: 0, StressSurvival: 0, StressSocial: 0, StressSelf: 0, StressLevel: 0 },
+            typeTimer: null
+        };
+
+        const app = document.getElementById('app');
+
+        function render() {
+            if (state.step === 'welcome') {
+                app.innerHTML = `
+                    <div class="w-full h-screen flex flex-col items-center justify-center fade-in">
+                        <div class="text-center float-anim">
+                            <h2 class="subtitle">潜意识与灵魂底色的探索之旅</h2>
+                            <h1 class="title">心灵之旅<br>幻雾森林</h1>
+                            <button onclick="startStory()" class="btn-primary mt-8">
+                                <span class="dot"></span>提灯入林
+                            </button>
+                            <br>
+                            <button onclick="showHistory()" class="btn-text">查看过往的灵魂倒影</button>
+                        </div>
+                        
+                        <!-- 首页底部标识 -->
+                        <div style="position: absolute; bottom: 20px; width: 100%; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 4px; opacity: 0.6; pointer-events: none;">
+                            <div style="display: flex; gap: 16px; font-size: 0.75rem; color: #94a3b8; letter-spacing: 1px;">
+                                <span>Created by @zhangkxuan</span>
+                                <span>|</span>
+                                <span>AI Generated</span>
+                            </div>
+                            <div style="font-size: 0.6rem; color: #475569; letter-spacing: 0.5px;">
+                                免责声明：本测试结果由AI生成，仅供娱乐与自我探索，不作医疗诊断用途。
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (state.step === 'story') {
+                const q = questionsData[state.qIndex];
+                const progress = (state.qIndex / questionsData.length) * 100;
+                
+                app.innerHTML = `
+                    <div class="container fade-in">
+                        <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: ${progress}%"></div></div>
+                        <div class="chapter-tag">— ${q.chapter} —</div>
+                        <div class="question-text" id="q-text"></div>
+                        <div class="options-container" id="q-opts" style="display:none; opacity:0; transition: opacity 0.5s;">
+                            ${q.options.map((opt, i) => `
+                                <button class="option-btn" onclick='answer(${JSON.stringify(opt.scores)})'>${opt.text}</button>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+                typeText(q.question);
+            } else if (state.step === 'loading') {
+                app.innerHTML = `
+                    <div class="w-full h-screen flex flex-col items-center justify-center fade-in">
+                        <div class="loader spin"></div>
+                        <p style="color: #cbd5e1; letter-spacing: 3px; text-shadow: 0 0 10px rgba(255,255,255,0.3);">泉水正在倒映你的灵魂...</p>
+                    </div>
+                `;
+                setTimeout(showResult, 3000);
+            } else if (state.step === 'result') {
+                const profile = getProfile();
+                
+                const stressList = [
+                    { name: '生存现实焦虑', value: state.scores.StressSurvival, desc: '对物质、工作、未来的现实压力，总觉得不能停下。' },
+                    { name: '社交情感疲惫', value: state.scores.StressSocial, desc: '对人际关系、迎合他人的疲惫感，害怕被误解。' },
+                    { name: '自我精神内耗', value: state.scores.StressSelf, desc: '对自我的高要求、完美主义与不断的自我怀疑。' }
+                ].sort((a, b) => b.value - a.value);
+
+                // Max possible score for a single stress source is now roughly 25 based on the updated weights
+                const getPercent = (val) => Math.min(Math.max((val / 20) * 100, 10), 100);
+
+                app.innerHTML = `
+                    <div class="result-container fade-in">
+                        <div class="result-card" id="card">
+                            <div class="card-header">
+                                <div class="card-tag float-anim">✦ 你的灵魂倒影 ✦</div>
+                                <div class="card-title">${profile.title}</div>
+                                <div class="card-subtitle">"${profile.subtitle}"</div>
+                            </div>
+                            
+                            <div class="card-body">
+                                <div class="analysis-section">
+                                    <div class="analysis-title">核心压力来源解析</div>
+                                    ${stressList.map(s => `
+                                        <div class="stress-bar-item">
+                                            <div class="stress-bar-header">
+                                                <span class="stress-bar-name">${s.name}</span>
+                                                <span>${s.value * 5} 点</span>
+                                            </div>
+                                            <div class="stress-bar-track">
+                                                <div class="stress-bar-fill" style="width: ${getPercent(s.value)}%"></div>
+                                            </div>
+                                            <div class="stress-desc">${s.desc}</div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+
+                                <div class="card-desc">${profile.desc}</div>
+                                
+                                <div class="card-footer" style="flex-direction: column; align-items: center; gap: 8px;">
+                                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                                        <span>Created by @zhangkxuan</span>
+                                        <i style="color: #4b5563;">AI Generated</i>
+                                    </div>
+                                    <div style="font-size: 0.65rem; color: #475569; text-align: center; margin-top: 4px;">
+                                        免责声明：本测试结果由AI生成，仅供娱乐与自我探索，不作医疗诊断用途。
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn-secondary" onclick="resetGame()">再次踏入森林</button>
+                            <button class="btn-action" onclick="alert('温馨提示：请使用手机自带的截屏功能来保存这张精美的卡片哦！')">保存结果卡片</button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function startStory() {
+            state.scores = { O: 0, C: 0, E: 0, A: 0, N: 0, StressSurvival: 0, StressSocial: 0, StressSelf: 0, StressLevel: 0 };
+            state.qIndex = 0;
+            state.step = 'story';
+            render();
+        }
+
+        function typeText(text) {
+            clearInterval(state.typeTimer);
+            const el = document.getElementById('q-text');
+            const opts = document.getElementById('q-opts');
+            let i = 0;
+            el.innerHTML = '<span class="blink">_</span>';
+            state.typeTimer = setInterval(() => {
+                el.innerHTML = text.slice(0, i+1) + '<span class="blink">_</span>';
+                i++;
+                if (i >= text.length) {
+                    clearInterval(state.typeTimer);
+                    el.innerHTML = text; // remove blink cursor
+                    setTimeout(() => {
+                        opts.style.display = 'flex';
+                        opts.style.opacity = '1';
+                    }, 200);
+                }
+            }, 30);
+        }
+
+        function answer(scoreObj) {
+            for(let key in scoreObj) {
+                if (scoreObj[key]) {
+                    state.scores[key] += scoreObj[key];
+                }
+            }
+            if(state.qIndex < questionsData.length - 1) {
+                state.qIndex++;
+                render();
+            } else {
+                state.step = 'loading';
+                saveToHistory();
+                render();
+            }
+        }
+
+        function showResult() {
+            state.step = 'result';
+            render();
+        }
+
+        function resetGame() {
+            state.step = 'welcome';
+            document.getElementById('welcome-bg-layer').classList.remove('hidden-bg'); // 恢复高清背景
+            render();
+        }
+
+        function saveToHistory() {
+            const profile = getProfile();
+            const history = JSON.parse(localStorage.getItem('mist_forest_history') || '[]');
+            
+            const stressList = [
+                { name: '生存现实焦虑', value: state.scores.StressSurvival, desc: '对物质、工作、未来的现实压力，总觉得不能停下。' },
+                { name: '社交情感疲惫', value: state.scores.StressSocial, desc: '对人际关系、迎合他人的疲惫感，害怕被误解。' },
+                { name: '自我精神内耗', value: state.scores.StressSelf, desc: '对自我的高要求、完美主义与不断的自我怀疑。' }
+            ].sort((a, b) => b.value - a.value);
+
+            history.unshift({
+                date: new Date().toLocaleString('zh-CN', { hour12: false }),
+                title: profile.title,
+                subtitle: profile.subtitle,
+                desc: profile.desc,
+                mainStress: stressList[0].name,
+                stressData: stressList
+            });
+            
+            // Keep only last 10 records
+            if (history.length > 10) history.pop();
+            
+            localStorage.setItem('mist_forest_history', JSON.stringify(history));
+        }
+
+        // 重新进入结果页，但是不基于当前的 scores，而是基于传入的历史数据
+        function viewHistoryDetail(index) {
+            const history = JSON.parse(localStorage.getItem('mist_forest_history') || '[]');
+            const record = history[index];
+            if (!record) return;
+
+            // 关闭模态框
+            const modal = document.querySelector('.modal-overlay');
+            if (modal) modal.remove();
+
+            state.step = 'history_detail';
+            const getPercent = (val) => Math.min(Math.max((val / 20) * 100, 10), 100);
+
+            app.innerHTML = `
+                <div class="result-container fade-in">
+                    <div class="result-card" id="card">
+                        <div class="card-header">
+                            <div class="card-tag float-anim">✦ 你的历史倒影 (${record.date}) ✦</div>
+                            <div class="card-title">${record.title}</div>
+                            <div class="card-subtitle">"${record.subtitle}"</div>
+                        </div>
+                        
+                        <div class="card-body">
+                            <div class="analysis-section">
+                                <div class="analysis-title">核心压力来源解析</div>
+                                ${record.stressData.map(s => `
+                                    <div class="stress-bar-item">
+                                        <div class="stress-bar-header">
+                                            <span class="stress-bar-name">${s.name}</span>
+                                            <span>${s.value * 5} 点</span>
+                                        </div>
+                                        <div class="stress-bar-track">
+                                            <div class="stress-bar-fill" style="width: ${getPercent(s.value)}%"></div>
+                                        </div>
+                                        <div class="stress-desc">${s.desc}</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+
+                            <div class="card-desc">${record.desc}</div>
+                            
+                            <div class="card-footer" style="flex-direction: column; align-items: center; gap: 8px;">
+                                <div style="display: flex; justify-content: space-between; width: 100%;">
+                                    <span>Created by @zhangkxuan</span>
+                                    <i style="color: #4b5563;">AI Generated</i>
+                                </div>
+                                <div style="font-size: 0.65rem; color: #475569; text-align: center; margin-top: 4px;">
+                                    免责声明：本测试结果由AI生成，仅供娱乐与自我探索，不作医疗诊断用途。
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn-secondary" onclick="resetGame()">返回首页</button>
+                        <button class="btn-action" onclick="alert('温馨提示：请使用手机自带的截屏功能来保存这张精美的卡片哦！')">保存结果卡片</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function showHistory() {
+            const history = JSON.parse(localStorage.getItem('mist_forest_history') || '[]');
+            
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay fade-in';
+            
+            let contentHtml = `
+                <div class="modal-content">
+                    <h2 class="history-title">过往的灵魂倒影</h2>
+            `;
+            
+            if (history.length === 0) {
+                contentHtml += `<div class="empty-history">迷雾尚未散去，你还没有留下任何足迹...</div>`;
+            } else {
+                history.forEach((item, index) => {
+                    contentHtml += `
+                        <div class="history-item" onclick="viewHistoryDetail(${index})">
+                            <div class="history-item-date">${item.date}</div>
+                            <div class="history-item-title">${item.title}</div>
+                            <div class="history-item-stress">核心源头：${item.mainStress} <span style="float:right; font-size:12px; color:#6b7280;">点击查看详情 &gt;</span></div>
+                        </div>
+                    `;
+                });
+            }
+            
+            contentHtml += `
+                    <button class="close-btn" onclick="this.parentElement.parentElement.remove()">关闭记录</button>
+                </div>
+            `;
+            
+            modal.innerHTML = contentHtml;
+            document.body.appendChild(modal);
+        }
+
+        function getProfile() {
+            const s = state.scores;
+            // Introduce slight randomness or strict margin check to prevent "StressSelf" from always dominating due to small ties.
+            // If scores are too close (tie), we use personality traits to break the tie
+            let maxStress = Math.max(s.StressSurvival, s.StressSocial, s.StressSelf);
+            
+            // Adjust threshold for high stress
+            const isHighStress = s.StressLevel >= 6; 
+
+            // Strict condition checking to ensure better distribution
+            if (maxStress === s.StressSelf && s.StressSelf > s.StressSurvival && s.StressSelf > s.StressSocial) {
+                if (s.N >= s.O) {
+                    return { 
+                        title: "迷雾深处的独行者", 
+                        subtitle: "你向内索求答案，却容易被自己困住。", 
+                        desc: "极高的自我要求和敏感的心思，让你在森林中步步为营。外界的风吹草动都会引起你的警觉。试着原谅自己的不完美，偶尔停下来看看风景，放过自己才是最大的魔法。" 
+                    };
+                } else {
+                    return { 
+                        title: "被星辰遗忘的占星师", 
+                        subtitle: "你仰望星空，却常常在泥泞中感到失落。", 
+                        desc: "你拥有极高的精神追求和想象力，但现实的平庸经常让你感到精神内耗。你渴望深刻的意义，但请记住，平凡的烟火气同样能滋养你的灵魂。" 
+                    };
+                }
+            }
+            else if (maxStress === s.StressSocial && s.StressSocial > s.StressSelf) {
+                return { 
+                    title: "提灯的守望人", 
+                    subtitle: "你总是在照亮别人，却忘了灯油也会耗尽。", 
+                    desc: "你拥有极高的共情能力，但在人际交往中过度消耗了自己。在森林中，你总是害怕别人迷路，却不知不觉压抑了自己的真实需求。请学会为自己划定边界，学会说“不”。" 
+                };
+            }
+            else if (maxStress === s.StressSurvival && s.StressSurvival >= s.StressSelf) {
+                if (s.C > s.E) {
+                    return { 
+                        title: "戴着重枷的圣殿骑士", 
+                        subtitle: "责任是你的信仰，也是压垮你的铠甲。", 
+                        desc: "你非常靠谱，对工作和物质有着本能的焦虑，总是强迫自己把一切做到最好。但这让你背负了太多不属于你的重担。卸下铠甲休息一下吧，天不会塌下来的。" 
+                    };
+                } else {
+                    return { 
+                        title: "披荆斩棘的开拓者", 
+                        subtitle: "你的剑很锋利，但长期紧绷的弦容易断裂。", 
+                        desc: "你极具行动力，面对现实的压力习惯于正面迎击、不断进取。但在不断的冲锋中，你忽略了身体和情绪的疲惫。放下剑，允许自己偶尔做一个软弱的凡人。" 
+                    };
+                }
+            }
+            // Extreme conditions
+            else if (isHighStress && s.N > 4) {
+                return { 
+                    title: "逆流而上的破浪者", 
+                    subtitle: "你在风暴中心嘶吼，急需一个停靠的港湾。", 
+                    desc: "你目前的心理电量已经严重不足，处于濒临爆发或极度烦躁的边缘。你在抗争，但其实你更需要的是彻底的休息。去睡个好觉，或者去没有人的旷野大喊一声吧。" 
+                };
+            }
+            else if (!isHighStress && s.O > 4) {
+                return { 
+                    title: "幻境中的寻梦人", 
+                    subtitle: "现实太无趣，所以你选择住进梦里。", 
+                    desc: "你有一种神奇的能力，能把现实的压力通过幻想和兴趣消解掉。虽然有时显得不够脚踏实地，但这种随性让你免受了许多折磨。保持你的童心，但也要记得偶尔看看脚下的路。" 
+                };
+            }
+            else {
+                return { 
+                    title: "游刃有余的吟游诗人", 
+                    subtitle: "世界是一个巨大的草台班子，而你在歌唱。", 
+                    desc: "你的心理状态非常健康，能够较好地平衡现实压力与内心情绪。随和是你度过难关的法宝。请继续保持这份轻盈，享受这趟名为人生的旅程。" 
+                };
+            }
+        }
+
+        // Init
+        render();
+    </script>
+</body>
+</html>
